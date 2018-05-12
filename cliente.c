@@ -12,6 +12,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
+#include "tp_socket.h"
+
 #define AMOSTRAS 1
 
 int main (int argc, char *argv[]){
@@ -59,10 +61,10 @@ int main (int argc, char *argv[]){
 		exit(1);
 	}
 
- 	tp_sendto(socket_des, NOME_ARQUIVO, strlen(NOME_ARQUIVO), );
+ 	tp_sendto(socket_des, NOME_ARQUIVO, strlen(NOME_ARQUIVO), &cliente);
  	FILE *fp = fopen((const char*) NOME_ARQUIVO, "w+");
 	memset(buffer, 0x0, LENGTH);
-	while(tp_recvfrom(socket_des, buffer, LENGTH, ) > 0){ // recv: recebe do servidor e guarda no buffer. Retorna a quantidade de chars recebidos							// Continua no loop até não receber mais nada
+	while(tp_recvfrom(socket_des, buffer, LENGTH, &cliente) > 0){ // recv: recebe do servidor e guarda no buffer. Retorna a quantidade de chars recebidos							// Continua no loop até não receber mais nada
 	 	x = strlen(buffer);
 	 	mensagens++;
 	 	if(x < LENGTH){
