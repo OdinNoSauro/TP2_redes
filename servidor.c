@@ -8,7 +8,7 @@
 #include <sys/time.h>
 #include <netinet/in.h>
 
-#define AMOSTRAS 100
+#define AMOSTRAS 1
 
 struct sockaddr_in servidor;
 struct sockaddr_in cliente;

@@ -12,7 +12,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 
-#define AMOSTRAS 100
+#define AMOSTRAS 1
 
 struct sockaddr_in cliente;
 
