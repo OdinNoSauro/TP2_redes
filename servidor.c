@@ -12,15 +12,13 @@
 
 #define AMOSTRAS 100
 
-struct sockaddr_in servidor;
-struct sockaddr_in cliente;
-int tamanho = sizeof(cliente);
-
+so_addr cliente;
 
 int main (int argc, char *argv[]){
 
-	int PORTA = atoi(argv[1]); // porta da conexão
-	int LENGTH = atoi(argv[2]); // tamanho do buffer
+	int PORTA =3000; // atoi(argv[1]); // porta da conexão
+	int my_port = 2000;
+	int LENGTH = 32; //atoi(argv[2]); // tamanho do buffer
 	char nomeArq[20];
 	char buffer [LENGTH];
 	struct timeval inicio, fim;
@@ -29,8 +27,8 @@ int main (int argc, char *argv[]){
 	char *aux = malloc(LENGTH*sizeof(char));
 	int socket_des; // descritor do socket
 	int bytes_enviados = 0;
-	tp_init;
-	socket_des = tp_socket(htons(PORTA));
+	tp_init();
+	socket_des = tp_socket(my_port);
 	if (socket_des == -1){
 		perror("socket ");
 		exit(1);
@@ -44,16 +42,18 @@ int main (int argc, char *argv[]){
 	printf("Socket criado com sucesso\n");
 
 
-	printf("Aguardando resposta \n");
-
 	memset(buffer, 0x0, LENGTH);
-	memset(nomeArq, 0x0, 16);
-	while((tp_recvfrom(socket_des,nomeArq,20, &cliente))<0);
+	memset(nomeArq, 0x0, 20);
+	int i = 0;
+	unsigned int sock_len = sizeof(struct sockaddr_in);
+	do {
+		tp_recvfrom(socket_des,buffer,sizeof(char), &cliente);
+		nomeArq[i] = buffer[0];
+		i++;
+	} while(buffer[0]!='\0');
 	printf("Nome do arquivo: %s\n", nomeArq);
-	nomeArq[9]='\0';
 	FILE *fp = fopen((const char*) nomeArq, "r");
 	memset(aux, 0x0, LENGTH);
-	printf("1");
 	while((bytes_lidos=fread(aux,sizeof(char),LENGTH, fp)) > 0){
 		bytes_sendto = tp_sendto(socket_des, aux, bytes_lidos, &cliente);
 		bytes_enviados+=bytes_sendto;

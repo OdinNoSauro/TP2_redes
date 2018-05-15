@@ -9,7 +9,7 @@
 
 #include "tp_socket.h"
 
-#define MTU 1024 
+#define MTU 1024
 
 int tp_mtu(void)
 {
@@ -34,7 +34,7 @@ int tp_sendto(int so, char* buff, int buff_len, so_addr* to_addr)
             (struct sockaddr*) to_addr, sizeof(struct sockaddr_in));
     fprintf(stderr,"tp_sendto returning (sent %d bytes)\n", count);
     return count;
-    
+
 }
 
 int tp_recvfrom(int so, char* buff, int buff_len, so_addr* from_addr)
