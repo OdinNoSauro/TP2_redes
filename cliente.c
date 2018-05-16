@@ -23,11 +23,11 @@
 	memset(NOME_ARQUIVO, 0x0, 20);
 	strcpy(NOME_ARQUIVO, argv[3]);
 	int LENGTH = atoi(argv[4]); // tamanho do buffer
-	
+
 	struct timeval inicio, fim;
 	so_addr servidor;
-	
-	int PORTA_CLIENTE = 3000;
+
+	int PORTA_CLIENTE = PORTA_SERVIDOR;
 	int PORTA_SERVIDOR_ORIGINAL = PORTA_SERVIDOR;
 	int mensagens = 0;
 	int vez;
@@ -35,7 +35,7 @@
 	float media_v = 0;
 	float desvio = 0;
 	float tempo[AMOSTRAS];
-	
+
 	for (vez = 0; vez < AMOSTRAS; vez++){
 		char* buffer = malloc(LENGTH*sizeof(char));
 		char* letra = malloc(1*sizeof(char));
@@ -43,16 +43,16 @@
 
 		inicio.tv_usec = 0;
 		fim.tv_usec = 0;
-		
+
 		int socket_des; // descritor do socket
 		int bytes_recebidos = 0;
 		int x = 0;
-		
+
 		settimeofday(NULL, NULL);
 		gettimeofday(&inicio, NULL);
-		
+
 		socket_des = tp_socket(PORTA_CLIENTE);
-		
+
 		if (socket_des == -1){
 			perror("socket ");
 			exit(1);
@@ -61,7 +61,7 @@
 			printf("Socket criado com sucesso\n");
 
 		tp_build_addr(&servidor, HOST_SERVIDOR, PORTA_SERVIDOR);
-		
+
 		int i = 0;
 
 		//Envia nome do arquivo
@@ -77,7 +77,7 @@
 		//Recebe arquivo
 		FILE *fp = fopen((const char*) NOME_ARQUIVO, "w+");
 		memset(buffer, 0x0, LENGTH);
-		do{ 
+		do{
 			tp_recvfrom(socket_des, buffer, LENGTH, &servidor);
 			x = strlen(buffer);
 			mensagens++;
@@ -93,8 +93,8 @@
 			memset(buffer, 0x0, x);
 		}while();
 		printf("Conexão encerrada \n");
-		
-		
+
+
 		//Encerra e limpa a memória
 		fclose(fp);
 		close(socket_des);

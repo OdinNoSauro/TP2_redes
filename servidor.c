@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
+#include <string.h>
 #include <sys/time.h>
 #include <netinet/in.h>
 
@@ -9,23 +10,25 @@
 
 #define AMOSTRAS 100
 
-so_addr cliente;
 
 int main (int argc, char *argv[]){
+	tp_init();
 
-	int PORTA =3000; // atoi(argv[1]); // porta da conexão
-	int my_port = 2000;
-	int LENGTH = 32; //atoi(argv[2]); // tamanho do buffer
+	int PORTA_SERVIDOR = atoi(argv[1]); // porta da conexão
+	int LENGTH = atoi(argv[2]); // tamanho do buffer
 	char nomeArq[20];
-	char buffer [LENGTH];
-	struct timeval inicio, fim;
-	float media = 0;
+	int i = 0;
 	int bytes_lidos,bytes_sendto;
-	char *aux = malloc(LENGTH*sizeof(char));
+	char *buffer = malloc(LENGTH*sizeof(char));
 	int socket_des; // descritor do socket
 	int bytes_enviados = 0;
-	tp_init();
-	socket_des = tp_socket(my_port);
+
+	struct timeval inicio, fim;
+	float media = 0;
+
+	so_addr cliente;
+
+	socket_des = tp_socket(PORTA_SERVIDOR);
 	if (socket_des == -1){
 		perror("socket ");
 		exit(1);
@@ -38,10 +41,10 @@ int main (int argc, char *argv[]){
 	}else
 	printf("Socket criado com sucesso\n");
 
-
 	memset(buffer, 0x0, LENGTH);
 	memset(nomeArq, 0x0, 20);
-	int i = 0;
+
+	//Recebe nome do arquivo
 	unsigned int sock_len = sizeof(struct sockaddr_in);
 	do {
 		tp_recvfrom(socket_des,buffer,sizeof(char), &cliente);
@@ -49,17 +52,20 @@ int main (int argc, char *argv[]){
 		i++;
 	} while(buffer[0]!='\0');
 	printf("Nome do arquivo: %s\n", nomeArq);
+
+	// Envia arquivo
 	FILE* fp = fopen((const char*) nomeArq, "r");
-	memset(aux, 0x0, LENGTH);
-	while((bytes_lidos=fread(aux,sizeof(char),LENGTH, fp)) > 0){
-		bytes_sendto = tp_sendto(socket_des, aux, bytes_lidos, &cliente);
+	memset(buffer, 0x0, LENGTH);
+	while((bytes_lidos=fread(buffer,sizeof(char),LENGTH, fp)) > 0){
+		bytes_sendto = tp_sendto(socket_des, buffer, bytes_lidos, &cliente);
 		bytes_enviados+=bytes_sendto;
-		memset(aux, 0x0, LENGTH);
+		memset(buffer, 0x0, LENGTH);
 	};
 
+	//Encerra e limpa a memória
 	printf("Conexão encerrada\n");
 	fclose(fp);
 	close(socket_des);
-	free(aux);
+	free(buffer);
 	return 0;
 }
