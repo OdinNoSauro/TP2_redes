@@ -1,10 +1,7 @@
-#include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <stdio.h>
 #include <unistd.h>
 
-#include <sys/socket.h>
-#include <sys/types.h>
 #include <sys/time.h>
 #include <netinet/in.h>
 
@@ -52,7 +49,7 @@ int main (int argc, char *argv[]){
 		i++;
 	} while(buffer[0]!='\0');
 	printf("Nome do arquivo: %s\n", nomeArq);
-	FILE *fp = fopen((const char*) nomeArq, "r");
+	FILE* fp = fopen((const char*) nomeArq, "r");
 	memset(aux, 0x0, LENGTH);
 	while((bytes_lidos=fread(aux,sizeof(char),LENGTH, fp)) > 0){
 		bytes_sendto = tp_sendto(socket_des, aux, bytes_lidos, &cliente);
