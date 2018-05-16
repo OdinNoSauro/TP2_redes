@@ -73,7 +73,7 @@ int tp_socket(unsigned short port)
 {
     int    so;
     struct sockaddr_in local_addr;
-    int    addr_len =sizeof(local_addr);
+    int    addr_len = sizeof(local_addr);
 
     fprintf(stderr,"tp_socket called\n");
     if ((so=socket(PF_INET,SOCK_DGRAM,0))<0) {

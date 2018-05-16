@@ -8,26 +8,26 @@
 
 #include "tp_socket.h"
 
-#define AMOSTRAS 100
-
+#define AMOSTRAS 1
 
 int main (int argc, char *argv[]){
 	tp_init();
 
 	int PORTA_SERVIDOR = atoi(argv[1]); // porta da conexão
 	int LENGTH = atoi(argv[2]); // tamanho do buffer
+	
+	char *buffer = malloc(LENGTH*sizeof(char));
 	char nomeArq[20];
 	int i = 0;
-	int bytes_lidos,bytes_sendto;
-	char *buffer = malloc(LENGTH*sizeof(char));
-	int socket_des; // descritor do socket
+	int bytes_lidos, bytes_sendto;
 	int bytes_enviados = 0;
-
-	struct timeval inicio, fim;
+	int socket_des; // descritor do socket
 	float media = 0;
-
+	
+	struct timeval inicio, fim;
 	so_addr cliente;
 
+	//Criando socket
 	socket_des = tp_socket(PORTA_SERVIDOR);
 	if (socket_des == -1){
 		perror("socket ");
@@ -41,10 +41,10 @@ int main (int argc, char *argv[]){
 	}else
 	printf("Socket criado com sucesso\n");
 
-	memset(buffer, 0x0, LENGTH);
-	memset(nomeArq, 0x0, 20);
 
 	//Recebe nome do arquivo
+	memset(buffer, 0x0, LENGTH);
+	memset(nomeArq, 0x0, 20);
 	unsigned int sock_len = sizeof(struct sockaddr_in);
 	do {
 		tp_recvfrom(socket_des,buffer,sizeof(char), &cliente);
@@ -53,6 +53,7 @@ int main (int argc, char *argv[]){
 	} while(buffer[0]!='\0');
 	printf("Nome do arquivo: %s\n", nomeArq);
 
+	
 	// Envia arquivo
 	FILE* fp = fopen((const char*) nomeArq, "r");
 	memset(buffer, 0x0, LENGTH);
@@ -62,6 +63,7 @@ int main (int argc, char *argv[]){
 		memset(buffer, 0x0, LENGTH);
 	};
 
+	
 	//Encerra e limpa a memória
 	printf("Conexão encerrada\n");
 	fclose(fp);

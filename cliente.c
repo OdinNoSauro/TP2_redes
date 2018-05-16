@@ -1,38 +1,109 @@
-	// Cliente
+// Cliente
 
-	#include <stdlib.h>
-	#include <stdio.h>
-	#include <unistd.h>
-	#include <math.h>
-	#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <math.h>
+#include <string.h>
 
-	#include <sys/time.h>
-	#include <signal.h>   /* para signal */
-	#include <netinet/in.h>
-	#include <arpa/inet.h>
+#include <sys/time.h>
+#include <signal.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
-	#include "tp_socket.h"
+#include "tp_socket.h"
 
-	#define AMOSTRAS 1
+#define AMOSTRAS 1
+#define TAMANHO_CABECALHO 10
 
-	int timeout = 0;
-	int socket_des;
+int timeout = 0;
+int socket_des;
 
-	void myalarm(int seg){
-		alarm(1);
-	}
-	void timer_handler(int signum){
-		printf("Error: Timeout\n");
-		timeout = 1;
-		close(socket_des);
-	}
+void myalarm(int seg){
+	alarm(1);
+}
 
-	void settimer(void){
-			signal(SIGALRM,timer_handler);
-			myalarm(1);
-	}
+void timer_handler(int signum){
+	printf("Error: Timeout\n");
+	timeout = 1;
+	close(socket_des);
+}
 
-	int main (int argc, char *argv[]){
+void settimer(void){
+		signal(SIGALRM,timer_handler);
+		myalarm(1);
+}
+
+void intParaChar(int inteiro, char* vetor, int tamanho){
+    for(int i = tamanho-1; i >= 0; i--){
+    int aux = inteiro%10;
+    inteiro = inteiro/10;
+        switch (aux){
+            case 0:
+                vetor[i] = '0';
+                break;
+            case 1:
+                vetor[i] = '1';
+                break;
+            case 2:
+                vetor[i] = '2';
+                break;
+            case 3:
+                vetor[i] = '3';
+                break;
+            case 4:
+                vetor[i] = '4';
+                break;
+            case 5:
+                vetor[i] = '5';
+                break;
+            case 6:
+                vetor[i] = '6';
+                break;
+            case 7:
+                vetor[i] = '7';
+                break;
+            case 8:
+                vetor[i] = '8';
+                break;
+            case 9:
+                vetor[i] = '9';
+                break;
+        }
+    }
+}
+
+const char* somaDeVerificacao(const char* buffer){
+    int soma_buffer_int = 0;
+    char* soma_buffer_char = malloc(sizeof(char)*7);
+
+    for (int i = TAMANHO_CABECALHO; i < strlen(buffer); i++){
+        soma_buffer_int += (int) buffer[i];
+        
+        //131071(base 10) = 1111.1111.1111.1111(base 2)
+        if (soma_buffer_int > 131071) soma_buffer_int -= 131071;
+    
+    }
+    
+    intParaChar(soma_buffer_int, soma_buffer_char, 7);
+    
+    return soma_buffer_char;
+}
+
+const char comparaSomas(const char cabecalho[TAMANHO_CABECALHO], const char soma_verificacao[7]){
+    char* soma_cabecalho = malloc(sizeof(char)*7);
+    strncpy(soma_cabecalho, cabecalho, 6);
+    if (!strcmp(soma_verificacao, soma_cabecalho)){
+        free(soma_cabecalho);
+        return '1';
+    }
+    else{
+        free(soma_cabecalho);
+        return '0';
+    }
+}
+
+int main (int argc, char *argv[]){
 	tp_init();
 	settimer();
 
@@ -55,6 +126,13 @@
 	float media_v = 0;
 	float desvio = 0;
 	float tempo[AMOSTRAS];
+
+
+	char cabecalho[TAMANHO_CABECALHO];
+	/*	cabecalho[0-6] -> Soma de verificação;
+	  	cabecalho[7-8] -> Tamanho dados + cabeçalho. Expoente na base 2;
+		cabecalho[9] -> Recebi sem erros.
+	*/
 
 	for (vez = 0; vez < AMOSTRAS; vez++){
 		char* buffer = malloc(LENGTH*sizeof(char));
@@ -95,10 +173,29 @@
 
 		//Recebe arquivo
 		FILE *fp = fopen((const char*) NOME_ARQUIVO, "w+");
-		memset(buffer, 0x0, LENGTH);
+		
 		do{
-			tp_recvfrom(socket_des, buffer, LENGTH, &servidor);
-			if((x = strlen(buffer))>0)
+			memset(buffer, 0x0, LENGTH);
+			
+			while(timeout == 0)
+				x = tp_recvfrom(socket_des, buffer, LENGTH, &servidor);
+
+			//Extrai o cabeçalho.
+			strncpy(cabecalho, buffer, TAMANHO_CABECALHO);
+			
+			//Faz soma de verificação.
+			cabecalho[0] = comparaSomas(cabecalho, somaDeVerificacao(buffer));
+			
+			//Se incorreta, descarta e espera retransmitir.
+		}while(cabecalho[0] == '0');
+
+		myalarm();
+		
+		
+		//Soma correta. Acrescenta dado ao arquivo e pede próximo dado.
+			
+			
+			if(x>0)
 				myalarm(1);
 			mensagens++;
 			if(x < LENGTH){
@@ -112,7 +209,6 @@
 				printf("%s\n",buffer);
 			}
 			memset(buffer, 0x0, x);
-		}while(timeout == 0);
 		printf("Conexão encerrada \n");
 
 
