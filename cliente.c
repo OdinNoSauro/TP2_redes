@@ -4,8 +4,10 @@
 	#include <stdio.h>
 	#include <unistd.h>
 	#include <math.h>
+	#include <string.h>
 
 	#include <sys/time.h>
+	#include <signal.h>   /* para signal */
 	#include <netinet/in.h>
 	#include <arpa/inet.h>
 
@@ -13,8 +15,26 @@
 
 	#define AMOSTRAS 1
 
+	int timeout = 0;
+	int socket_des;
+
+	void myalarm(int seg){
+		alarm(1);
+	}
+	void timer_handler(int signum){
+		printf("Error: Timeout\n");
+		timeout = 1;
+		close(socket_des);
+	}
+
+	void settimer(void){
+			signal(SIGALRM,timer_handler);
+			myalarm(1);
+	}
+
 	int main (int argc, char *argv[]){
 	tp_init();
+	settimer();
 
 	char HOST_SERVIDOR[16];
 	strcpy(HOST_SERVIDOR, argv[1]);//host_do_servidor
@@ -27,7 +47,7 @@
 	struct timeval inicio, fim;
 	so_addr servidor;
 
-	int PORTA_CLIENTE = PORTA_SERVIDOR;
+	int PORTA_CLIENTE = PORTA_SERVIDOR+1;
 	int PORTA_SERVIDOR_ORIGINAL = PORTA_SERVIDOR;
 	int mensagens = 0;
 	int vez;
@@ -44,7 +64,6 @@
 		inicio.tv_usec = 0;
 		fim.tv_usec = 0;
 
-		int socket_des; // descritor do socket
 		int bytes_recebidos = 0;
 		int x = 0;
 
@@ -79,19 +98,21 @@
 		memset(buffer, 0x0, LENGTH);
 		do{
 			tp_recvfrom(socket_des, buffer, LENGTH, &servidor);
-			x = strlen(buffer);
+			if((x = strlen(buffer))>0)
+				myalarm(1);
 			mensagens++;
 			if(x < LENGTH){
 				bytes_recebidos += x;
 				fwrite(buffer, sizeof(char), x, fp);
+				printf("%s\n",buffer);
 			}
 			else{
 				bytes_recebidos += LENGTH;
 				fwrite(buffer, sizeof(char), LENGTH, fp);
+				printf("%s\n",buffer);
 			}
-			printf("%s\n",buffer);
 			memset(buffer, 0x0, x);
-		}while();
+		}while(timeout == 0);
 		printf("Conexão encerrada \n");
 
 

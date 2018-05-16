@@ -33,7 +33,7 @@ timer_handler(int signum)
     fprintf(stderr,"Anda logo!\n");
     /* Uma outra opção seria setar uma variável global
      * e testá-la no loop principal do programa, mas isso
-     * só funcionaria nos casos onde a chamada bloqueada 
+     * só funcionaria nos casos onde a chamada bloqueada
      * fosse interrompida pelo sinal
      * (o que não acontece no caso do teclado, pelo menos).
      */
@@ -53,7 +53,7 @@ main(int argc, char* argv[])
     size_t elen;
     int    done; /* Controle do loop */
 
-    espera = (argc == 2)? atoi(argv[1]): 1000;
+    espera =  5000;
 
     mysethandler(); /* Só precisa ser feito uma vez */
     mysettimer(espera);
@@ -81,15 +81,15 @@ main(int argc, char* argv[])
     }
 
    /*
-    * Há dois comportamentos possíveis para funções que bloqueiam na 
-    * ocorrência de um sinal: elas podem ser reiniciadas pelo kernel 
-    * depois que o tratador for chamado, ou elas podem retornar com um 
+    * Há dois comportamentos possíveis para funções que bloqueiam na
+    * ocorrência de um sinal: elas podem ser reiniciadas pelo kernel
+    * depois que o tratador for chamado, ou elas podem retornar com um
     * valor de errno igual a EINTR. No caso atual, como a leitura de dados
     * é do teclado, o S.O. reinicia a chamada internamente. Isso tem o
     * efeito de apenas escrver "Anda logo!" a cada intervalo de tempo.
     * Se a chamada a fgets fosse interrompida, o resultado seria que
     * a cada sinalização do temporizador seriam também re-escrita
-    * a mensagem "Escreva algo:" depois de cada "Anda logo!". 
+    * a mensagem "Escreva algo:" depois de cada "Anda logo!".
     * Esse comportamento deve ser observado em chamadas a recvfrom,
     * por exemplo.
     */
