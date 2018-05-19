@@ -14,7 +14,7 @@
 #include "tp_socket.h"
 
 #define AMOSTRAS 1
-#define TAMANHO_CABECALHO 31
+#define TAMANHO_CABECALHO 32
 
 int timeout = 0;
 int socket_des;
@@ -25,7 +25,7 @@ void settimer(void);
 void intParaChar(int inteiro, char* vetor, int inicio, int termino);
 const char* somaDeVerificacao(const char* buffer);
 int comparaSomas(const char* buffer);
-void enviaPacote(int somaDeVerificacao, int numero_de_sequencia, int ACK, char* buffer, int socket_des, so_addr* destino);
+void enviaPacote(int somaDeVerificacao, int numero_de_sequencia, int ACK, int flag, char* buffer, int socket_des, so_addr* destino);
 
 int main (int argc, char *argv[]){
 	tp_init();
@@ -101,7 +101,7 @@ int main (int argc, char *argv[]){
 			}
 			//Se o timeout expirar, reenvia o pacote anterior
 			if (timeout != 0){
-				enviaPacote(0, 0, ACK, buffer, socket_des, &servidor);
+				enviaPacote(0, 0, ACK, 0, buffer, socket_des, &servidor);
 			}
 			else{
 				mensagens++;
@@ -111,7 +111,7 @@ int main (int argc, char *argv[]){
 				//Se a soma estiver errada, reenvia o pacote anterior	
 				if (!somasIguais){
 					memset(buffer, 0x0, sizeof(buffer));
-					enviaPacote(0, 0, ACK, buffer, socket_des, &servidor);
+					enviaPacote(0, 0, ACK, 0, buffer, socket_des, &servidor);
 				}
 
 				//Se a soma estiver certa, atualiza ACK, insere dados no arquivo e envia pacote
@@ -125,7 +125,7 @@ int main (int argc, char *argv[]){
 					fclose(fp);		
 					
 					memset(buffer, 0x0, sizeof(buffer));
-					enviaPacote(0, 0, ACK, buffer, socket_des, &servidor);
+					enviaPacote(0, 0, ACK, 0, buffer, socket_des, &servidor);
 				}	
 			}
 			myalarm(1);
@@ -249,17 +249,19 @@ int comparaSomas(const char* buffer){
     }
 }
 
-void enviaPacote(int somaDeVerificacao, int numero_de_sequencia, int ACK, char* buffer, int socket_des, so_addr* destino){
+void enviaPacote(int somaDeVerificacao, int numero_de_sequencia, int ACK,, int flag, char* buffer, int socket_des, so_addr* destino){
 	char cabecalho[TAMANHO_CABECALHO];
 	/*	cabecalho[0-6] -> Soma de verificação;
 	  	cabecalho[7-10] -> Tamanho dados;
 		cabecalho[11-20] -> Número de sequência;
 		cabecalho[21-30] -> ACK.
+		cabecalho[31] -> flag.
 	*/
 	intParaChar(somaDeVerificacao, cabecalho, 0, 6);
 	intParaChar(strlen(buffer), cabecalho, 7, 10);
 	intParaChar(numero_de_sequencia, cabecalho, 11, 20);
 	intParaChar(ACK, cabecalho, 21, 30);
+	intParaChar(flag, cabecalho, 31, 31);
 	
 	memcpy(buffer, cabecalho, TAMANHO_CABECALHO-1);
 
