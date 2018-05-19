@@ -18,7 +18,7 @@
 void intParaChar(int inteiro, char* vetor, int inicio, int termino);
 int charParaInt(const char* vetor, int inicio, int termino);
 int somaDeVerificacao(const char* buffer);
-int enviaPacote(int somaDeVerificacao, int tamanhoDados, int numero_de_sequencia, int ACK, int flag, char* buffer, int socket_des, so_addr* destino);
+int enviaPacote(int ACK, int flag, int socket_des, so_addr* destino);
 int comparaSomas(const char* buffer);
 
 int main (int argc, char *argv[]){
@@ -57,7 +57,8 @@ int main (int argc, char *argv[]){
 		int bytes_recebidos = 0;
 		int x = 0;
 		int numero_de_sequencia;
-		int ACK = 0;
+		int ACK = 1;
+		int flag = 0;
 
 		settimeofday(NULL, NULL);
 		gettimeofday(&inicio, NULL);
@@ -83,53 +84,44 @@ int main (int argc, char *argv[]){
 		}while(NOME_ARQUIVO[i]!='\0');
 		letra = &NOME_ARQUIVO[i];
 		tp_sendto(socket_des, letra, sizeof(char), &servidor);
-
-
+		
 		//Recebe arquivo
-		/*========ORIGINAL========
 		FILE *fp = fopen((const char*) NOME_ARQUIVO, "w+");
-		memset(buffer, 0x0, LENGTH);
 		do{
+			//1º Recebe pacote do servidor
+			memset(buffer, 0x0, LENGTH);
 			tp_recvfrom(socket_des, buffer, LENGTH, &servidor);
 			x = strlen(buffer);
+			bytes_recebidos += x;
 			mensagens++;
-			if(x < LENGTH){
-				bytes_recebidos += x;
-				fwrite(buffer, sizeof(char), x, fp);
-			}
-			else{
-				bytes_recebidos += LENGTH;
-				fwrite(buffer, sizeof(char), LENGTH, fp);
-			}
-			printf("%s\n",buffer);
-			memset(buffer, 0x0, x);
-		}while();*/
 
-		//1º Recebe pacote do servidor
-		memset(buffer, 0x0, LENGTH);
-		tp_recvfrom(socket_des, buffer, LENGTH, &servidor);
-		x = strlen(buffer);
-		bytes_recebidos += x;
-		mensagens++;
+			//2º Faz soma de verificação e, se correta, verifica número de sequência
+			if(comparaSomas(buffer)){
+				numero_de_sequencia = charParaInt(buffer, 10, 19);
+				
+				//3º Se número de sequência igual a ACK, insere no arquivo e envia ACK
+				if (ACK == numero_de_sequencia){
+					x -= TAMANHO_CABECALHO;
+					fwrite(&buffer[TAMANHO_CABECALHO], sizeof(char), x, fp);
 
-		//2º Faz soma de verificação e, se correta, verifica número de sequência
-		if(comparaSomas(buffer)){
-			printf("SOMAS IGUAIS!\n");
-			printf("BUFFER: %s\n", buffer);
-		}
-		else{
-			printf("SOMAS DIFERENTES!");
-		}
-		//3º Se número de sequência igual a ACK, insere no arquivo e envia ACK
-		//4º Se não, reenvia último pacote
-		//4º Faz isso até receber flag = 1 no passo 3
+					ACK += x;
+					flag = charParaInt(buffer, 30, 30);
+
+					enviaPacote(ACK, flag, socket_des, &servidor);
+				}
+				//4º Se não, reenvia último pacote.
+				else{
+					enviaPacote(ACK, flag, socket_des, &servidor);
+				}
+			}
+		}while(flag != 1);
+		//5º Faz isso até receber flag = 1 no passo 3
 
 		//Encerra e limpa a memória
 		printf("Conexão encerrada \n");
-		//fclose(fp);
+		fclose(fp);
 		close(socket_des);
 		free(buffer);
-
 
 		//Desempenho
 		gettimeofday(&fim, NULL);
@@ -244,7 +236,7 @@ int somaDeVerificacao(const char* buffer){
     return soma_buffer;
 }
 
-int enviaPacote(int somaDeVerificacao, int tamanhoDados, int numero_de_sequencia, int ACK, int flag, char* buffer, int socket_des, so_addr* destino){
+int enviaPacote(int ACK, int flag, int socket_des, so_addr* destino){
 	char cabecalho[TAMANHO_CABECALHO];
 	/*	cabecalho[0-5] -> Soma de verificação;
 	  	cabecalho[6-9] -> Tamanho dados;
@@ -252,15 +244,11 @@ int enviaPacote(int somaDeVerificacao, int tamanhoDados, int numero_de_sequencia
 		cabecalho[20-29] -> ACK;
 		cabecalho[30] -> flag.
 	*/
-	intParaChar(somaDeVerificacao, cabecalho, 0, 5);
-	intParaChar(tamanhoDados, cabecalho, 6, 9);
-	intParaChar(numero_de_sequencia, cabecalho, 10, 19);
+	intParaChar(0, cabecalho, 0, 19);
 	intParaChar(ACK, cabecalho, 20, 29);
 	intParaChar(flag, cabecalho, 30, 30);
-	
-	memcpy(buffer, cabecalho, TAMANHO_CABECALHO);
 
-	return tp_sendto(socket_des, buffer, strlen(buffer), destino);
+	return tp_sendto(socket_des, cabecalho, TAMANHO_CABECALHO, destino);
 }
 
 int comparaSomas(const char* buffer){
