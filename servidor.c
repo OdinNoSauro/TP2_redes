@@ -14,9 +14,9 @@
 
 int timeout = 0;
 
-//void myalarm(int seg);
-//void timer_handler(int signum);
-//void settimer(void);
+void myalarm(int seg);
+void timer_handler(int signum);
+void settimer(void);
 void intParaChar(int inteiro, char* vetor, int inicio, int termino);
 int somaDeVerificacao(const char* buffer);
 //int comparaSomas(const char* buffer);
@@ -30,6 +30,7 @@ int main (int argc, char *argv[]){
 	
 	char *buffer = malloc(LENGTH*sizeof(char));
 	char nomeArq[20];
+	char cabecalho_recebido[TAMANHO_CABECALHO];
 	int i = 0;
 	int bytes_lidos, bytes_sendto;
 	int bytes_enviados = 0;
@@ -86,7 +87,10 @@ int main (int argc, char *argv[]){
 	bytes_sendto = enviaPacote(somaDeVerificacao(buffer), bytes_lidos, numero_de_sequencia, 0, 0, buffer, socket_des, &cliente);
 	numero_de_sequencia += bytes_lidos;
 	bytes_enviados += bytes_sendto;
+	myalarm(1);
+
 	//2º Espera recebimento do ACK ou timeout
+	while((timeout == 0)&&(tp_recvfrom(socket_des, cabecalho_recebido, TAMANHO_CABECALHO, &cliente) == 0));
 	//3º Recebendo pacote, verifica o ACK e envia o pacote correspondente
 	//4º Com timeout, reenvia pacote
 	//5º Faz isso até o final do arquivo, enviando flag 1 no final do arquivo.
@@ -101,19 +105,19 @@ int main (int argc, char *argv[]){
 	return 0;
 }
 
-/*void myalarm(int seg){
+void myalarm(int seg){
 	alarm(1);
-}*/
+}
 
-/*void timer_handler(int signum){
+void timer_handler(int signum){
 	printf("Error: Timeout\n");
 	timeout = 1;
-}*/
+}
 
-/*void settimer(void){
+void settimer(void){
 		signal(SIGALRM,timer_handler);
 		myalarm(1);
-}*/
+}
 
 void intParaChar(int inteiro, char* vetor, int inicio, int termino){
     for(int i = termino; i >= inicio; i--){
