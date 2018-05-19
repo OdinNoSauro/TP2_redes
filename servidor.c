@@ -24,6 +24,7 @@ int enviaPacote(int somaDeVerificacao, int tamanhoDados, int numero_de_sequencia
 
 int main (int argc, char *argv[]){
 	tp_init();
+	settimer();
 
 	int PORTA_SERVIDOR = atoi(argv[1]); // porta da conexão
 	int LENGTH = atoi(argv[2]); // tamanho do buffer
@@ -80,7 +81,7 @@ int main (int argc, char *argv[]){
 		memset(buffer, 0x0, LENGTH);
 	};*/
 
-	//1º Envia pacote com o máximo de dados permitido pelo buffer.
+	//1º Envia primeiro pacote com o máximo de dados permitido pelo buffer.
 	FILE* fp = fopen((const char*) nomeArq, "r");
 	memset(buffer, 0x0, LENGTH);
 	bytes_lidos = fread(&buffer[TAMANHO_CABECALHO], sizeof(char), LENGTH-TAMANHO_CABECALHO, fp);
@@ -90,9 +91,17 @@ int main (int argc, char *argv[]){
 	myalarm(1);
 
 	//2º Espera recebimento do ACK ou timeout
-	while((timeout == 0)&&(tp_recvfrom(socket_des, cabecalho_recebido, TAMANHO_CABECALHO, &cliente) == 0));
-	//3º Recebendo pacote, verifica o ACK e envia o pacote correspondente
-	//4º Com timeout, reenvia pacote
+	while((timeout == 0)&&(tp_recvfrom(socket_des, cabecalho_recebido, TAMANHO_CABECALHO, &cliente) == -1));
+	//3º Com timeout, reenvia pacote
+	if (timeout == 1){
+		bytes_sendto = tp_sendto(socket_des, buffer, strlen(buffer), &cliente);
+		bytes_enviados += bytes_sendto;	
+	}
+	//4º Recebendo pacote, verifica o ACK e envia o pacote correspondente
+	else{
+		printf("CABECALHO RECEBIDO: %s\n", cabecalho_recebido);
+	}
+	myalarm(1);
 	//5º Faz isso até o final do arquivo, enviando flag 1 no final do arquivo.
 	//6º Espera resposta com flag 1 e fecha tudo.
 
@@ -115,8 +124,8 @@ void timer_handler(int signum){
 }
 
 void settimer(void){
-		signal(SIGALRM,timer_handler);
-		myalarm(1);
+	signal(SIGALRM,timer_handler);
+	myalarm(1);
 }
 
 void intParaChar(int inteiro, char* vetor, int inicio, int termino){
