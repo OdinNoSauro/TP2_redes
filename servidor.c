@@ -10,21 +10,23 @@
 #include "tp_socket.h"
 
 #define AMOSTRAS 1
-#define TAMANHO_CABECALHO 31
+#define TAMANHO_CABECALHO 317
+#define TEMPO_TIMEOUT 10
 
 int timeout = 0;
 
 void myalarm(int seg);
 void timer_handler(int signum);
 void settimer(void);
+
 void intParaChar(int inteiro, char* vetor, int inicio, int termino);
+int charParaInt(char* vetor, int inicio, int termino);
 int somaDeVerificacao(const char* buffer);
 //int comparaSomas(const char* buffer);
 int enviaPacote(int somaDeVerificacao, int tamanhoDados, int numero_de_sequencia, int ACK, int flag, char* buffer, int socket_des, so_addr* destino);
 
 int main (int argc, char *argv[]){
 	tp_init();
-	settimer();
 
 	int PORTA_SERVIDOR = atoi(argv[1]); // porta da conexão
 	int LENGTH = atoi(argv[2]); // tamanho do buffer
@@ -36,6 +38,7 @@ int main (int argc, char *argv[]){
 	int bytes_lidos, bytes_sendto;
 	int bytes_enviados = 0;
 	int numero_de_sequencia = 0;
+	int ACK = 0;
 	int socket_des; // descritor do socket
 	float media = 0;
 	
@@ -88,7 +91,8 @@ int main (int argc, char *argv[]){
 	bytes_sendto = enviaPacote(somaDeVerificacao(buffer), bytes_lidos, numero_de_sequencia, 0, 0, buffer, socket_des, &cliente);
 	numero_de_sequencia += bytes_lidos;
 	bytes_enviados += bytes_sendto;
-	myalarm(1);
+	settimer();
+	myalarm(TEMPO_TIMEOUT);
 
 	//2º Espera recebimento do ACK ou timeout
 	while((timeout == 0)&&(tp_recvfrom(socket_des, cabecalho_recebido, TAMANHO_CABECALHO, &cliente) == -1));
@@ -99,9 +103,9 @@ int main (int argc, char *argv[]){
 	}
 	//4º Recebendo pacote, verifica o ACK e envia o pacote correspondente
 	else{
-		printf("CABECALHO RECEBIDO: %s\n", cabecalho_recebido);
+		ACK = charParaInt(cabecalho_recebido, 20, 29);
+		printf("ACK: %i\n", ACK);
 	}
-	myalarm(1);
 	//5º Faz isso até o final do arquivo, enviando flag 1 no final do arquivo.
 	//6º Espera resposta com flag 1 e fecha tudo.
 
@@ -115,7 +119,7 @@ int main (int argc, char *argv[]){
 }
 
 void myalarm(int seg){
-	alarm(1);
+	alarm(seg);
 }
 
 void timer_handler(int signum){
@@ -125,7 +129,7 @@ void timer_handler(int signum){
 
 void settimer(void){
 	signal(SIGALRM,timer_handler);
-	myalarm(1);
+	myalarm(TEMPO_TIMEOUT);
 }
 
 void intParaChar(int inteiro, char* vetor, int inicio, int termino){
@@ -165,6 +169,43 @@ void intParaChar(int inteiro, char* vetor, int inicio, int termino){
                 break;
         }
     }
+}
+
+int charParaInt(char* vetor, int inicio, int termino){
+	int retorno = 0;
+	for (int i=inicio; i <= termino; i++){
+        retorno *= 10;
+		switch (vetor[i]){
+            case '1':
+                retorno += 1;
+                break;
+            case '2':
+                retorno += 2;
+                break;
+            case '3':
+                retorno += 3;
+                break;
+            case '4':
+                retorno += 4;
+                break;
+            case '5':
+                retorno += 5;
+                break;
+            case '6':
+                retorno += 6;
+                break;
+            case '7':
+                retorno += 7;
+                break;
+            case '8':
+                retorno += 8;
+                break;
+            case '9':
+                retorno += 9;
+                break;
+        }
+	}
+	return retorno;
 }
 
 int somaDeVerificacao(const char* buffer){
