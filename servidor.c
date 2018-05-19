@@ -39,8 +39,7 @@ int main (int argc, char *argv[]){
 	int i = 0;
 	int bytes_lidos, bytes_sendto;
 	int bytes_enviados = 0;
-	int numero_de_sequencia = 0;
-	int ACK = 0;
+	int numero_de_sequencia = 1;
 	int flag = 0;
 	float media = 0;
 	
@@ -109,7 +108,7 @@ int main (int argc, char *argv[]){
 			bytes_lidos = fread(&buffer[TAMANHO_CABECALHO], sizeof(char), LENGTH-TAMANHO_CABECALHO, fp);
 	
 			if (strlen(buffer) < LENGTH) flag = 1;
-			bytes_sendto = enviaPacote(somaDeVerificacao(buffer), bytes_lidos, numero_de_sequencia+1, 0, flag, buffer, socket_des, &cliente);
+			bytes_sendto = enviaPacote(somaDeVerificacao(buffer), bytes_lidos, numero_de_sequencia, 0, flag, buffer, socket_des, &cliente);
 			numero_de_sequencia += bytes_lidos;
 			bytes_enviados += bytes_sendto;
 		}
