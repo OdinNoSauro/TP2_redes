@@ -4,16 +4,18 @@
 
 #include <string.h>
 #include <signal.h>
+#include <sys/errno.h>  
 #include <sys/time.h>
 #include <netinet/in.h>
 
 #include "tp_socket.h"
 
 #define AMOSTRAS 1
-#define TAMANHO_CABECALHO 317
+#define TAMANHO_CABECALHO 31
 #define TEMPO_TIMEOUT 10
 
 int timeout = 0;
+int socket_des; // descritor do socket
 
 void myalarm(int seg);
 void timer_handler(int signum);
@@ -22,7 +24,6 @@ void settimer(void);
 void intParaChar(int inteiro, char* vetor, int inicio, int termino);
 int charParaInt(char* vetor, int inicio, int termino);
 int somaDeVerificacao(const char* buffer);
-//int comparaSomas(const char* buffer);
 int enviaPacote(int somaDeVerificacao, int tamanhoDados, int numero_de_sequencia, int ACK, int flag, char* buffer, int socket_des, so_addr* destino);
 
 int main (int argc, char *argv[]){
@@ -34,12 +35,13 @@ int main (int argc, char *argv[]){
 	char *buffer = malloc(LENGTH*sizeof(char));
 	char nomeArq[20];
 	char cabecalho_recebido[TAMANHO_CABECALHO];
+	memset(cabecalho_recebido, (int) '0', TAMANHO_CABECALHO);
 	int i = 0;
 	int bytes_lidos, bytes_sendto;
 	int bytes_enviados = 0;
 	int numero_de_sequencia = 0;
 	int ACK = 0;
-	int socket_des; // descritor do socket
+	int flag = 0;
 	float media = 0;
 	
 	struct timeval inicio, fim;
@@ -68,48 +70,66 @@ int main (int argc, char *argv[]){
 		tp_recvfrom(socket_des,buffer,sizeof(char), &cliente);
 		nomeArq[i] = buffer[0];
 		i++;
-	} while(buffer[0]!='0');
-	nomeArq[i - 1] = '\0';
+	} while(buffer[0]!='\0');
 	printf("Nome do arquivo: %s\n", nomeArq);
 
-	
-	// Envia arquivo
-	
-	//==========IMPLEMENTAÇÃO ANTIGA===================
-	/*FILE* fp = fopen((const char*) nomeArq, "r");
-	memset(buffer, 0x0, LENGTH);
-	while((bytes_lidos=fread(buffer,sizeof(char),LENGTH, fp)) > 0){
-		bytes_sendto = tp_sendto(socket_des, buffer, bytes_lidos, &cliente);
-		bytes_enviados+=bytes_sendto;
-		memset(buffer, 0x0, LENGTH);
-	};*/
+
+	//Envia arquivo
 
 	//1º Envia primeiro pacote com o máximo de dados permitido pelo buffer.
 	FILE* fp = fopen((const char*) nomeArq, "r");
 	memset(buffer, 0x0, LENGTH);
+	memset(buffer, (int) '0', TAMANHO_CABECALHO); //cabeçalho vazio
 	bytes_lidos = fread(&buffer[TAMANHO_CABECALHO], sizeof(char), LENGTH-TAMANHO_CABECALHO, fp);
-	bytes_sendto = enviaPacote(somaDeVerificacao(buffer), bytes_lidos, numero_de_sequencia, 0, 0, buffer, socket_des, &cliente);
+	
+	if (strlen(buffer) < LENGTH) flag = 1;
+	bytes_sendto = enviaPacote(somaDeVerificacao(buffer), bytes_lidos, numero_de_sequencia, 0, flag, buffer, socket_des, &cliente);
 	numero_de_sequencia += bytes_lidos;
 	bytes_enviados += bytes_sendto;
+	
 	settimer();
 	myalarm(TEMPO_TIMEOUT);
 
-	//2º Espera recebimento do ACK ou timeout
-	while((timeout == 0)&&(tp_recvfrom(socket_des, cabecalho_recebido, TAMANHO_CABECALHO, &cliente) == -1));
-	//3º Com timeout, reenvia pacote
-	if (timeout == 1){
-		bytes_sendto = tp_sendto(socket_des, buffer, strlen(buffer), &cliente);
-		bytes_enviados += bytes_sendto;	
-	}
-	//4º Recebendo pacote, verifica o ACK e envia o pacote correspondente
-	else{
-		ACK = charParaInt(cabecalho_recebido, 20, 29);
-		printf("ACK: %i\n", ACK);
-	}
-	//5º Faz isso até o final do arquivo, enviando flag 1 no final do arquivo.
-	//6º Espera resposta com flag 1 e fecha tudo.
-
+	while(flag != 1){
+		//2º Espera recebimento do ACK ou timeout
+		while((timeout == 0)&&(tp_recvfrom(socket_des, cabecalho_recebido, TAMANHO_CABECALHO, &cliente) == -1));
+		
+		//3º Com timeout, reenvia pacote
+		if (timeout == 1){
+			socket_des = tp_socket(PORTA_SERVIDOR);
+			bytes_sendto = tp_sendto(socket_des, buffer, strlen(buffer), &cliente);
+			bytes_enviados += bytes_sendto;
+			timeout = 0;
+		}
+		
+		//4º Recebendo pacote, envia próximo pacote
+		else{
+			memset(buffer, 0x0, LENGTH);
+			memset(buffer, (int) '0', TAMANHO_CABECALHO);
+			bytes_lidos = fread(&buffer[TAMANHO_CABECALHO], sizeof(char), LENGTH-TAMANHO_CABECALHO, fp);
 	
+			if (strlen(buffer) < LENGTH) flag = 1;
+			bytes_sendto = enviaPacote(somaDeVerificacao(buffer), bytes_lidos, numero_de_sequencia+1, 0, flag, buffer, socket_des, &cliente);
+			numero_de_sequencia += bytes_lidos;
+			bytes_enviados += bytes_sendto;
+		}
+		myalarm(TEMPO_TIMEOUT);
+	}
+	//5º Faz isso até o final do arquivo.
+	
+	//6º Reenvia último pacote até receber pacote do cliente com flag = 1 (confirmando recebimento)
+	while(charParaInt(cabecalho_recebido, 30, 30) != 1){
+		while((timeout == 0)&&(tp_recvfrom(socket_des, cabecalho_recebido, TAMANHO_CABECALHO, &cliente) == -1));
+		
+		if (timeout == 1){
+			socket_des = tp_socket(PORTA_SERVIDOR);
+			bytes_sendto = tp_sendto(socket_des, buffer, strlen(buffer), &cliente);
+			bytes_enviados += bytes_sendto;
+			timeout = 0;
+			myalarm(TEMPO_TIMEOUT);
+		}
+	}
+
 	//Encerra e limpa a memória
 	printf("Conexão encerrada\n");
 	fclose(fp);
@@ -125,6 +145,7 @@ void myalarm(int seg){
 void timer_handler(int signum){
 	printf("Error: Timeout\n");
 	timeout = 1;
+	close(socket_des);
 }
 
 void settimer(void){
@@ -222,31 +243,12 @@ int somaDeVerificacao(const char* buffer){
     return soma_buffer;
 }
 
-/*int comparaSomas(const char* buffer){
-	char* soma_verificacao = malloc(sizeof(char)*7);
-	soma_verificacao = somaDeVerificacao(buffer);
-
-    char* soma_cabecalho = malloc(sizeof(char)*7);
-	strncpy(soma_cabecalho, buffer, 6);
-
-    if (!strcmp(soma_verificacao, soma_cabecalho)){
-        free(soma_verificacao);
-		free(soma_cabecalho);
-        return 1;
-    }
-    else{
-		free(soma_verificacao);
-        free(soma_cabecalho);
-        return 0;
-    }
-}*/
-
 int enviaPacote(int somaDeVerificacao, int tamanhoDados, int numero_de_sequencia, int ACK, int flag, char* buffer, int socket_des, so_addr* destino){
 	char cabecalho[TAMANHO_CABECALHO];
 	/*	cabecalho[0-5] -> Soma de verificação;
 	  	cabecalho[6-9] -> Tamanho dados;
 		cabecalho[10-19] -> Número de sequência;
-		cabecalho[20-29] -> ACK.
+		cabecalho[20-29] -> ACK;
 		cabecalho[30] -> flag.
 	*/
 	intParaChar(somaDeVerificacao, cabecalho, 0, 5);
