@@ -84,7 +84,7 @@ int main (int argc, char *argv[]){
 		}while(NOME_ARQUIVO[i]!='\0');
 		letra = &NOME_ARQUIVO[i];
 		tp_sendto(socket_des, letra, sizeof(char), &servidor);
-		
+
 		//Recebe arquivo
 		FILE *fp = fopen((const char*) NOME_ARQUIVO, "w+");
 		do{
@@ -98,7 +98,7 @@ int main (int argc, char *argv[]){
 			//2º Faz soma de verificação e, se correta, verifica número de sequência
 			if(comparaSomas(buffer)){
 				numero_de_sequencia = charParaInt(buffer, 10, 19);
-				
+
 				//3º Se número de sequência igual a ACK, insere no arquivo e envia ACK
 				if (ACK == numero_de_sequencia){
 					x -= TAMANHO_CABECALHO;
@@ -114,6 +114,8 @@ int main (int argc, char *argv[]){
 					enviaPacote(ACK, flag, socket_des, &servidor);
 				}
 			}
+			else
+				printf("Erro de soma\n");
 		}while(flag != 1);
 		//5º Faz isso até receber flag = 1 no passo 3
 
@@ -227,12 +229,12 @@ int somaDeVerificacao(const char* buffer){
 
     for (int i = TAMANHO_CABECALHO; i < strlen(buffer); i++){
         soma_buffer += (int) buffer[i];
-        
+
         //131071(base 10) = 1111.1111.1111.1111(base 2)
         if (soma_buffer > 131071) soma_buffer -= 131071;
-    
+
     }
-    
+
     return soma_buffer;
 }
 
@@ -251,9 +253,10 @@ int enviaPacote(int ACK, int flag, int socket_des, so_addr* destino){
 	return tp_sendto(socket_des, cabecalho, TAMANHO_CABECALHO, destino);
 }
 
+
 int comparaSomas(const char* buffer){
 	int soma_verificacao_local, soma_verificacao_pacote;
-	
+
 	soma_verificacao_local = somaDeVerificacao(buffer);
 	soma_verificacao_pacote = charParaInt(buffer, 0, 5);
 
