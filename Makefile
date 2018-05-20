@@ -5,7 +5,7 @@ SERVIDOR_SRC = servidor.o tp_socket.o
 
 all: cliente servidor
 
-cliente: $(CLIENTE_CSRC)
+cliente: $(CLIENTE_SRC)
 	gcc -o cliente cliente.c tp_socket.c -lm
 
 cliente.o: cliente.c

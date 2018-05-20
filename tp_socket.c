@@ -11,6 +11,7 @@
 
 #define MTU 1024
 int i = 0;
+int j = 0;
 char aux;
 
 int tp_mtu(void)
@@ -41,7 +42,15 @@ int tp_sendto(int so, char* buff, int buff_len, so_addr* to_addr)
       i++;
     }*/
 
-
+    // Descomente o if else abaixo para testar ocorrência de perda de pacotes
+    /*if (j == 27){ // Valor de i representa a frequência que um pacote é corrompido. Nesse caso 1 vez a cada 27 envios
+      j = 0;
+      return strlen(buff);
+    }
+    else
+      j++;
+      */
+    
     count = sendto(so, (void*)buff, buff_len, 0,
             (struct sockaddr*) to_addr, sizeof(struct sockaddr_in));
     fprintf(stderr,"tp_sendto returning (sent %d bytes)\n", count);

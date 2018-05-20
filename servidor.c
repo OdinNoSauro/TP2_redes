@@ -42,6 +42,7 @@ int main (int argc, char *argv[]){
 	int bytes_lidos, bytes_sendto;
 	int bytes_enviados = 0;
 	int numero_de_sequencia = 1;
+	int numero_de_sequencia_aux = 1;
 	int flag = 0;
 	float media = 0;
 
@@ -104,8 +105,7 @@ int main (int argc, char *argv[]){
 		//3º Com timeout, reenvia pacote
 		if (timeout == 1){
 			socket_des = tp_socket(PORTA_SERVIDOR);
-			numero_de_sequencia-=bytes_lidos;
-			bytes_sendto = enviaPacote(somaDeVerificacao(backup), bytes_lidos, numero_de_sequencia, 0, flag, backup, socket_des, &cliente);
+			bytes_sendto = enviaPacote(somaDeVerificacao(backup), bytes_lidos, numero_de_sequencia_aux, 0, flag, backup, socket_des, &cliente);
 			bytes_enviados += bytes_sendto;
 			timeout = 0;
 			myalarm(TEMPO_TIMEOUT);
@@ -123,6 +123,7 @@ int main (int argc, char *argv[]){
 			if (strlen(buffer) < LENGTH)
 				flag = 1;
 			bytes_sendto = enviaPacote(somaDeVerificacao(buffer), bytes_lidos, numero_de_sequencia, 0, flag, buffer, socket_des, &cliente);
+			numero_de_sequencia_aux = numero_de_sequencia;
 			numero_de_sequencia += bytes_lidos;
 			bytes_enviados += bytes_sendto;
 			myalarm(TEMPO_TIMEOUT);
@@ -137,7 +138,7 @@ int main (int argc, char *argv[]){
 
 		if (timeout == 1){
 			socket_des = tp_socket(PORTA_SERVIDOR);
-			bytes_sendto = enviaPacote(somaDeVerificacao(backup), bytes_lidos, numero_de_sequencia, 0, flag, backup, socket_des, &cliente);
+			bytes_sendto = enviaPacote(somaDeVerificacao(backup), bytes_lidos, numero_de_sequencia_aux, 0, flag, backup, socket_des, &cliente);
 			bytes_enviados += bytes_sendto;
 			timeout = 0;
 			myalarm(TEMPO_TIMEOUT);
