@@ -11,11 +11,12 @@
 
 #include "tp_socket.h"
 
-#define AMOSTRAS 1
+#define AMOSTRAS 100
 #define TAMANHO_CABECALHO 31
 #define TEMPO_TIMEOUT 1
 
 int timeout = 0;
+int LENGTH;
 int socket_des; // descritor do socket
 
 void myalarm(int seg);
@@ -31,130 +32,149 @@ int main (int argc, char *argv[]){
 	tp_init();
 
 	int PORTA_SERVIDOR = atoi(argv[1]); // porta da conexão
-	int LENGTH = atoi(argv[2]); // tamanho do buffer
+	int PORTA_SERVIDOR_ORIGINAL = PORTA_SERVIDOR;
+	LENGTH = atoi(argv[2]); // tamanho do buffer
 
-	char *buffer = malloc(LENGTH*sizeof(char));
-	char *backup = malloc(LENGTH*sizeof(char));
 	char nomeArq[20];
 	char cabecalho_recebido[TAMANHO_CABECALHO];
 	memset(cabecalho_recebido, (int) '0', TAMANHO_CABECALHO);
-	int i = 0;
-	int bytes_lidos, bytes_sendto;
-	int bytes_enviados = 0;
-	int numero_de_sequencia = 1;
-	int numero_de_sequencia_aux = 1;
-	int flag = 0;
-	float media = 0;
+	int vez;
+	float tempo;
 
 	struct timeval inicio, fim;
 	so_addr cliente;
 
-	//Criando socket
-	socket_des = tp_socket(PORTA_SERVIDOR);
-	if (socket_des == -1){
-		perror("socket ");
-		exit(1);
-	}else if(socket_des == -2){
-		perror("build addr");
-		exit(1);
-	}else if (socket_des == -3){
-		perror("bind");
-		exit(1);
-	}
-	printf("Socket criado com sucesso\n");
+	for (vez = 0; vez < AMOSTRAS; vez++){
+		printf("%i\n", vez);
+		char *buffer = malloc(LENGTH*sizeof(char));
+		char *backup = malloc(LENGTH*sizeof(char));
+		PORTA_SERVIDOR = PORTA_SERVIDOR_ORIGINAL + vez;
+		printf("%i\n", PORTA_SERVIDOR);
 
+		inicio.tv_usec = 0;
+		fim.tv_usec = 0;
+		memset(nomeArq,0x0,20);
+		int bytes_lidos, bytes_sendto;
+		int bytes_enviados = 0;
+		int numero_de_sequencia = 1;
+		int numero_de_sequencia_aux = 1;
+		int flag = 0;
+		int i = 0;
 
-	//Recebe nome do arquivo
-	memset(buffer, 0x0, LENGTH);
-	memset(nomeArq, 0x0, 20);
-	unsigned int sock_len = sizeof(struct sockaddr_in);
-	do {
-		tp_recvfrom(socket_des,buffer,sizeof(char), &cliente);
-		nomeArq[i] = buffer[0];
-		i++;
-	} while(buffer[0]!='\0');
-	nomeArq[0]=toupper(nomeArq[0]);
-	printf("Nome do arquivo: %s\n", nomeArq);
-
-
-	//Envia arquivo
-
-	//1º Envia primeiro pacote com o máximo de dados permitido pelo buffer.
-	FILE* fp = fopen((const char*) nomeArq, "r");
-	memset(buffer, 0x0, LENGTH);
-	memset(buffer, (int) '0', TAMANHO_CABECALHO); //cabeçalho vazio
-	memset(backup, 0x0, LENGTH);
-	memset(backup, (int) '0', TAMANHO_CABECALHO); //cabeçalho vazio
-	bytes_lidos = fread(&buffer[TAMANHO_CABECALHO], sizeof(char), LENGTH-TAMANHO_CABECALHO, fp);
-	memcpy(backup, buffer, LENGTH);
-
-
-	if (strlen(buffer) < LENGTH)
-		flag = 1;
-	bytes_sendto = enviaPacote(somaDeVerificacao(buffer), bytes_lidos, numero_de_sequencia, 0, flag, buffer, socket_des, &cliente);
-	numero_de_sequencia += bytes_lidos;
-	bytes_enviados += bytes_sendto;
-	int mensagens =1;
-	settimer();
-	myalarm(TEMPO_TIMEOUT);
-
-	while(flag != 1){
-		//2º Espera recebimento do ACK ou timeout
-		while((timeout == 0)&&(tp_recvfrom(socket_des, cabecalho_recebido, TAMANHO_CABECALHO, &cliente) == -1));
-
-		//3º Com timeout, reenvia pacote
-		if (timeout == 1){
-			socket_des = tp_socket(PORTA_SERVIDOR);
-			bytes_sendto = enviaPacote(somaDeVerificacao(backup), bytes_lidos, numero_de_sequencia_aux, 0, flag, backup, socket_des, &cliente);
-			bytes_enviados += bytes_sendto;
-			timeout = 0;
-			myalarm(TEMPO_TIMEOUT);
+		//Criando socket
+		socket_des = tp_socket(PORTA_SERVIDOR);
+		if (socket_des == -1){
+			perror("socket ");
+			exit(1);
+		}else if(socket_des == -2){
+			perror("build addr");
+			exit(1);
+		}else if (socket_des == -3){
+			perror("bind");
+			exit(1);
 		}
+		printf("Socket criado com sucesso\n");
 
-		//4º Recebendo pacote, envia próximo pacote
-		else{
-			memset(buffer, 0x0, LENGTH);
-			memset(buffer, (int) '0', TAMANHO_CABECALHO);
-			memset(backup, 0x0, LENGTH);
-			memset(backup, (int) '0', TAMANHO_CABECALHO); //cabeçalho vazio
-			bytes_lidos = fread(&buffer[TAMANHO_CABECALHO], sizeof(char), LENGTH-TAMANHO_CABECALHO, fp);
-			memcpy(backup, buffer, LENGTH);
-			mensagens++;
-			if (strlen(buffer) < LENGTH)
-				flag = 1;
-			bytes_sendto = enviaPacote(somaDeVerificacao(buffer), bytes_lidos, numero_de_sequencia, 0, flag, buffer, socket_des, &cliente);
-			numero_de_sequencia_aux = numero_de_sequencia;
-			numero_de_sequencia += bytes_lidos;
-			bytes_enviados += bytes_sendto;
-			myalarm(TEMPO_TIMEOUT);
+
+		//Recebe nome do arquivo
+		memset(nomeArq, 0x0, 20);
+		do {
+			tp_recvfrom(socket_des,buffer,sizeof(char), &cliente);
+			nomeArq[i] = buffer[0];
+			i++;
+		} while(buffer[0]!='\0');
+		nomeArq[0]=toupper(nomeArq[0]);
+		printf("Nome do arquivo: %s\n", nomeArq);
+
+		settimeofday(NULL, NULL);
+		gettimeofday(&inicio, NULL);
+
+		//Envia arquivo
+
+		//1º Envia primeiro pacote com o máximo de dados permitido pelo buffer.
+		FILE* fp = fopen((const char*) nomeArq, "r");
+		memset(buffer, 0x0, LENGTH);
+		memset(buffer, (int) '0', TAMANHO_CABECALHO); //cabeçalho vazio
+		memset(backup, 0x0, LENGTH);
+		memset(backup, (int) '0', TAMANHO_CABECALHO); //cabeçalho vazio
+		bytes_lidos = fread(&buffer[TAMANHO_CABECALHO], sizeof(char), LENGTH-TAMANHO_CABECALHO, fp);
+		memcpy(backup, buffer, LENGTH);
+
+
+		if (strlen(buffer) < LENGTH)
+			flag = 1;
+		bytes_sendto = enviaPacote(somaDeVerificacao(buffer), bytes_lidos, numero_de_sequencia, 0, flag, buffer, socket_des, &cliente);
+		printf("%i\n", numero_de_sequencia);
+		numero_de_sequencia += bytes_lidos;
+		bytes_enviados += bytes_sendto;
+		int mensagens =1;
+		settimer();
+		myalarm(TEMPO_TIMEOUT);
+
+		while(flag != 1){
+			//2º Espera recebimento do ACK ou timeout
+			while((timeout == 0)&&(tp_recvfrom(socket_des, cabecalho_recebido, TAMANHO_CABECALHO, &cliente) == -1));
+
+			//3º Com timeout, reenvia pacote
+			if (timeout == 1){
+				socket_des = tp_socket(PORTA_SERVIDOR);
+				bytes_sendto = enviaPacote(somaDeVerificacao(backup), bytes_lidos, numero_de_sequencia_aux, 0, flag, backup, socket_des, &cliente);
+				bytes_enviados += bytes_sendto;
+				timeout = 0;
+				myalarm(TEMPO_TIMEOUT);
+			}
+
+			//4º Recebendo pacote, envia próximo pacote
+			else{
+				memset(buffer, 0x0, LENGTH);
+				memset(buffer, (int) '0', TAMANHO_CABECALHO);
+				memset(backup, 0x0, LENGTH);
+				memset(backup, (int) '0', TAMANHO_CABECALHO); //cabeçalho vazio
+				bytes_lidos = fread(&buffer[TAMANHO_CABECALHO], sizeof(char), LENGTH-TAMANHO_CABECALHO, fp);
+				memcpy(backup, buffer, LENGTH);
+				mensagens++;
+				if (strlen(buffer) < LENGTH)
+					flag = 1;
+				bytes_sendto = enviaPacote(somaDeVerificacao(buffer), bytes_lidos, numero_de_sequencia, 0, flag, buffer, socket_des, &cliente);
+				printf("%i\n", numero_de_sequencia);
+				numero_de_sequencia_aux = numero_de_sequencia;
+				numero_de_sequencia += bytes_lidos;
+				bytes_enviados += bytes_sendto;
+				myalarm(TEMPO_TIMEOUT);
+			}
+
 		}
+		//5º Faz isso até o final do arquivo.
 
-	}
-	//5º Faz isso até o final do arquivo.
+		//6º Reenvia último pacote até receber pacote do cliente com flag = 1 (confirmando recebimento)
+		while(charParaInt(cabecalho_recebido, 30, 30) != 1){
+			while((timeout == 0)&&(tp_recvfrom(socket_des, cabecalho_recebido, TAMANHO_CABECALHO, &cliente) == -1));
 
-	//6º Reenvia último pacote até receber pacote do cliente com flag = 1 (confirmando recebimento)
-	while(charParaInt(cabecalho_recebido, 30, 30) != 1){
-		while((timeout == 0)&&(tp_recvfrom(socket_des, cabecalho_recebido, TAMANHO_CABECALHO, &cliente) == -1));
-
-		if (timeout == 1){
-			socket_des = tp_socket(PORTA_SERVIDOR);
-			bytes_sendto = enviaPacote(somaDeVerificacao(backup), bytes_lidos, numero_de_sequencia_aux, 0, flag, backup, socket_des, &cliente);
-			bytes_enviados += bytes_sendto;
-			timeout = 0;
-			myalarm(TEMPO_TIMEOUT);
+			if (timeout == 1){
+				socket_des = tp_socket(PORTA_SERVIDOR);
+				bytes_sendto = enviaPacote(somaDeVerificacao(backup), bytes_lidos, numero_de_sequencia_aux, 0, flag, backup, socket_des, &cliente);
+				bytes_enviados += bytes_sendto;
+				timeout = 0;
+				myalarm(TEMPO_TIMEOUT);
+			}
 		}
-	}
-	myalarm(0);
+		myalarm(0);
 
-	//Encerra e limpa a memória
-	printf("Conexão encerrada\n");
-	fclose(fp);
-	close(socket_des);
-	free(buffer);
+		//Encerra e limpa a memória
+		printf("Conexão encerrada\n");
+		fclose(fp);
+		close(socket_des);
+		free(buffer);
+		free(backup);
 
-	printf("Bytes lidos: %i\n", (numero_de_sequencia-1));
-	printf("Bytes enviados: %i\n", bytes_enviados );
+		printf("Bytes lidos: %i\n", (numero_de_sequencia-1));
+		printf("Bytes enviados: %i\n", bytes_enviados );
 
+		//Desempenho
+		gettimeofday(&fim, NULL);
+		tempo = (fim.tv_sec - inicio.tv_sec) + (fim.tv_usec - inicio.tv_usec)/1000000.0;
+		printf("Tempo de envio: %f\n", tempo );
+	}// Fim do for
 	return 0;
 }
 
@@ -278,6 +298,8 @@ int enviaPacote(int somaDeVerificacao, int tamanhoDados, int numero_de_sequencia
 	intParaChar(flag, cabecalho, 30, 30);
 
 	memcpy(buffer, cabecalho, TAMANHO_CABECALHO);
-
-	return tp_sendto(socket_des, buffer, strlen(buffer), destino);
+	//if (strlen(buffer)<LENGTH)
+		return tp_sendto(socket_des, buffer, strlen(buffer), destino);
+	//else
+	//	return tp_sendto(socket_des, buffer, LENGTH, destino);
 }

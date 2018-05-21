@@ -12,7 +12,7 @@
 
 #include "tp_socket.h"
 
-#define AMOSTRAS 1
+#define AMOSTRAS 100
 #define TAMANHO_CABECALHO 31
 
 void intParaChar(int inteiro, char* vetor, int inicio, int termino);
@@ -36,7 +36,7 @@ int main (int argc, char *argv[]){
 	struct timeval inicio, fim;
 	so_addr servidor;
 
-	int PORTA_CLIENTE = 2000;
+	int PORTA_CLIENTE;
 	int PORTA_SERVIDOR_ORIGINAL = PORTA_SERVIDOR;
 	int mensagens = 0;
 	int vez;
@@ -46,9 +46,12 @@ int main (int argc, char *argv[]){
 	float tempo[AMOSTRAS];
 
 	for (vez = 0; vez < AMOSTRAS; vez++){
+		printf("%i\n", vez);
 		char* buffer = malloc(LENGTH*sizeof(char));
 		char* letra = malloc(1*sizeof(char));
 		PORTA_SERVIDOR = PORTA_SERVIDOR_ORIGINAL + vez;
+		printf("%i\n", PORTA_SERVIDOR);
+		PORTA_CLIENTE = PORTA_SERVIDOR+1000;
 
 		inicio.tv_usec = 0;
 		fim.tv_usec = 0;
@@ -60,8 +63,7 @@ int main (int argc, char *argv[]){
 		int ACK = 1;
 		int flag = 0;
 
-		settimeofday(NULL, NULL);
-		gettimeofday(&inicio, NULL);
+
 
 		socket_des = tp_socket(PORTA_CLIENTE);
 
@@ -85,6 +87,9 @@ int main (int argc, char *argv[]){
 		letra = &NOME_ARQUIVO[i];
 		tp_sendto(socket_des, letra, sizeof(char), &servidor);
 
+		settimeofday(NULL, NULL);
+		gettimeofday(&inicio, NULL);
+
 		//Recebe arquivo
 		FILE *fp = fopen((const char*) NOME_ARQUIVO, "w+");
 		do{
@@ -98,13 +103,15 @@ int main (int argc, char *argv[]){
 			//2º Faz soma de verificação e, se correta, verifica número de sequência
 			if(comparaSomas(buffer)){
 				numero_de_sequencia = charParaInt(buffer, 10, 19);
-
+				printf("%i\n", ACK);
 				//3º Se número de sequência igual a ACK, insere no arquivo e envia ACK
 				if (ACK == numero_de_sequencia){
 					x -= TAMANHO_CABECALHO;
 					fwrite(&buffer[TAMANHO_CABECALHO], sizeof(char), x, fp);
-
-					ACK += x;
+					if (x<(LENGTH - TAMANHO_CABECALHO))
+						ACK += x;
+					else
+						ACK += (LENGTH - TAMANHO_CABECALHO);
 					flag = charParaInt(buffer, 30, 30);
 
 					enviaPacote(ACK, flag, socket_des, &servidor);
