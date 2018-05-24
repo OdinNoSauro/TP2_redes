@@ -33,7 +33,14 @@ int tp_sendto(int so, char* buff, int buff_len, so_addr* to_addr)
      * exercitar a funcionalidade do protocolo da camada   *
      * acima (o PJD).                                      *
      *******************************************************/
-
+/*
+    if(i == 33){
+      buff[32] = 'W';
+      i = 0;
+    }
+    else
+      i++;
+    */
     // Descomente o if else abaixo para testar ocorrência de perda de pacotes
     /*if (j == 27){ // Valor de i representa a frequência que um pacote é corrompido. Nesse caso 1 vez a cada 27 envios
       j = 0;
