@@ -11,7 +11,7 @@
 
 #include "tp_socket.h"
 
-#define AMOSTRAS 100
+#define AMOSTRAS 1
 #define TAMANHO_CABECALHO 31
 #define TEMPO_TIMEOUT 1
 
@@ -74,17 +74,28 @@ int main (int argc, char *argv[]){
 			exit(1);
 		}
 		printf("Socket criado com sucesso\n");
-
+		int ACK = 1;
 
 		//Recebe nome do arquivo
-		memset(nomeArq, 0x0, 20);
+		memset(buffer, 0x0, LENGTH);
 		do {
-			tp_recvfrom(socket_des,buffer,sizeof(char), &cliente);
-			nomeArq[i] = buffer[0];
-			i++;
-		} while(buffer[0]!='\0');
+			tp_recvfrom(socket_des,buffer,3*sizeof(char), &cliente);
+			numero_de_sequencia = charParaInt(buffer,1,1);
+			if(numero_de_sequencia == ACK){
+				nomeArq[i] = buffer[0];
+				i++;
+				ACK++;
+				intParaChar(ACK,buffer,1,1);
+				tp_sendto(socket_des,buffer,3*sizeof(char),&cliente);
+			}
+			else{
+				printf("Erro no ACK\n");
+				timeout = 0;
+			}
+		} while(buffer[2]!='1');
 		nomeArq[0]=toupper(nomeArq[0]);
 		printf("Nome do arquivo: %s\n", nomeArq);
+		numero_de_sequencia = 1;
 
 		settimeofday(NULL, NULL);
 		gettimeofday(&inicio, NULL);
@@ -97,14 +108,16 @@ int main (int argc, char *argv[]){
 		memset(buffer, (int) '0', TAMANHO_CABECALHO); //cabeçalho vazio
 		memset(backup, 0x0, LENGTH);
 		memset(backup, (int) '0', TAMANHO_CABECALHO); //cabeçalho vazio
-		bytes_lidos = fread(&buffer[TAMANHO_CABECALHO], sizeof(char), LENGTH-TAMANHO_CABECALHO, fp);
+		bytes_lidos = fread(&buffer[TAMANHO_CABECALHO], 1, LENGTH-TAMANHO_CABECALHO-1, fp);
+	//	buffer[LENGTH] =  '\0';
+
 		memcpy(backup, buffer, LENGTH);
 
 
-		if (strlen(buffer) < LENGTH)
+
+		if (strlen(buffer) < LENGTH-1)
 			flag = 1;
 		bytes_sendto = enviaPacote(somaDeVerificacao(buffer), bytes_lidos, numero_de_sequencia, 0, flag, buffer, socket_des, &cliente);
-		printf("%i\n", numero_de_sequencia);
 		numero_de_sequencia += bytes_lidos;
 		bytes_enviados += bytes_sendto;
 		int mensagens =1;
@@ -118,6 +131,7 @@ int main (int argc, char *argv[]){
 			//3º Com timeout, reenvia pacote
 			if (timeout == 1){
 				socket_des = tp_socket(PORTA_SERVIDOR);
+				backup[LENGTH] = '\0';
 				bytes_sendto = enviaPacote(somaDeVerificacao(backup), bytes_lidos, numero_de_sequencia_aux, 0, flag, backup, socket_des, &cliente);
 				bytes_enviados += bytes_sendto;
 				timeout = 0;
@@ -130,13 +144,12 @@ int main (int argc, char *argv[]){
 				memset(buffer, (int) '0', TAMANHO_CABECALHO);
 				memset(backup, 0x0, LENGTH);
 				memset(backup, (int) '0', TAMANHO_CABECALHO); //cabeçalho vazio
-				bytes_lidos = fread(&buffer[TAMANHO_CABECALHO], sizeof(char), LENGTH-TAMANHO_CABECALHO, fp);
+				bytes_lidos = fread(&buffer[TAMANHO_CABECALHO], sizeof(char), LENGTH-TAMANHO_CABECALHO-1, fp);
 				memcpy(backup, buffer, LENGTH);
 				mensagens++;
-				if (strlen(buffer) < LENGTH)
+				if (strlen(buffer) < LENGTH-1)
 					flag = 1;
 				bytes_sendto = enviaPacote(somaDeVerificacao(buffer), bytes_lidos, numero_de_sequencia, 0, flag, buffer, socket_des, &cliente);
-				printf("%i\n", numero_de_sequencia);
 				numero_de_sequencia_aux = numero_de_sequencia;
 				numero_de_sequencia += bytes_lidos;
 				bytes_enviados += bytes_sendto;
@@ -152,6 +165,7 @@ int main (int argc, char *argv[]){
 
 			if (timeout == 1){
 				socket_des = tp_socket(PORTA_SERVIDOR);
+				backup[LENGTH] = '\0';
 				bytes_sendto = enviaPacote(somaDeVerificacao(backup), bytes_lidos, numero_de_sequencia_aux, 0, flag, backup, socket_des, &cliente);
 				bytes_enviados += bytes_sendto;
 				timeout = 0;
@@ -299,7 +313,7 @@ int enviaPacote(int somaDeVerificacao, int tamanhoDados, int numero_de_sequencia
 
 	memcpy(buffer, cabecalho, TAMANHO_CABECALHO);
 	//if (strlen(buffer)<LENGTH)
-		return tp_sendto(socket_des, buffer, strlen(buffer), destino);
+		return tp_sendto(socket_des, buffer, TAMANHO_CABECALHO+tamanhoDados+1, destino);
 	//else
 	//	return tp_sendto(socket_des, buffer, LENGTH, destino);
 }

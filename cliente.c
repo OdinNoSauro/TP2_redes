@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <math.h>
+#include <signal.h>
 
 #include <string.h>
 #include <sys/time.h>
@@ -12,14 +13,22 @@
 
 #include "tp_socket.h"
 
-#define AMOSTRAS 100
+#define AMOSTRAS 1
 #define TAMANHO_CABECALHO 31
+#define TEMPO_TIMEOUT 1
+
+int timeout = 0;
+int socket_des; // descritor do socket
 
 void intParaChar(int inteiro, char* vetor, int inicio, int termino);
 int charParaInt(const char* vetor, int inicio, int termino);
 int somaDeVerificacao(const char* buffer);
 int enviaPacote(int ACK, int flag, int socket_des, so_addr* destino);
 int comparaSomas(const char* buffer);
+
+void myalarm(int seg);
+void timer_handler(int signum);
+void settimer(void);
 
 int main (int argc, char *argv[]){
 	tp_init();
@@ -29,6 +38,7 @@ int main (int argc, char *argv[]){
 	strcpy(HOST_SERVIDOR, argv[1]);//host_do_servidor
 	int PORTA_SERVIDOR = atoi(argv[2]); // porta da conexão
 	char NOME_ARQUIVO[20];
+	char cabecalho_recebido[TAMANHO_CABECALHO];
 	memset(NOME_ARQUIVO, 0x0, 20);
 	strcpy(NOME_ARQUIVO, argv[3]);
 	int LENGTH = atoi(argv[4]); // tamanho do buffer
@@ -46,17 +56,15 @@ int main (int argc, char *argv[]){
 	float tempo[AMOSTRAS];
 
 	for (vez = 0; vez < AMOSTRAS; vez++){
-		printf("%i\n", vez);
 		char* buffer = malloc(LENGTH*sizeof(char));
-		char* letra = malloc(1*sizeof(char));
+		char* letra = malloc(3*sizeof(char));
 		PORTA_SERVIDOR = PORTA_SERVIDOR_ORIGINAL + vez;
-		printf("%i\n", PORTA_SERVIDOR);
 		PORTA_CLIENTE = PORTA_SERVIDOR+1000;
 
 		inicio.tv_usec = 0;
 		fim.tv_usec = 0;
 
-		int socket_des; // descritor do socket
+
 		int bytes_recebidos = 0;
 		int x = 0;
 		int numero_de_sequencia;
@@ -80,13 +88,29 @@ int main (int argc, char *argv[]){
 
 		//Envia nome do arquivo
 		do {
-			letra = &NOME_ARQUIVO[i];
-			tp_sendto(socket_des, letra, sizeof(char), &servidor);
-			i++;
-		}while(NOME_ARQUIVO[i]!='\0');
-		letra = &NOME_ARQUIVO[i];
-		tp_sendto(socket_des, letra, sizeof(char), &servidor);
+			letra[0] = NOME_ARQUIVO[i];
+			intParaChar(i+1,letra,1,1);
+			if(NOME_ARQUIVO[1+i] =='\0')
+				flag = 1;
+			intParaChar(flag,letra,2,2);
+			tp_sendto(socket_des, letra, 3*sizeof(char), &servidor);
+			settimer();
+			myalarm(TEMPO_TIMEOUT);
+			while((timeout == 0)&&(tp_recvfrom(socket_des, letra, 3*sizeof(char), &servidor) == -1));
+			if (timeout == 0){
+				i++;
+				myalarm(TEMPO_TIMEOUT);
+			}else{
+				socket_des = tp_socket(PORTA_CLIENTE);
+				tp_build_addr(&servidor, HOST_SERVIDOR, PORTA_SERVIDOR);
+				timeout = 0;
+				myalarm(TEMPO_TIMEOUT);
+			}
 
+		}while(NOME_ARQUIVO[i]!='\0');
+		myalarm(0);
+		flag = 0;
+		ACK = 1;
 		settimeofday(NULL, NULL);
 		gettimeofday(&inicio, NULL);
 
@@ -103,7 +127,6 @@ int main (int argc, char *argv[]){
 			//2º Faz soma de verificação e, se correta, verifica número de sequência
 			if(comparaSomas(buffer)){
 				numero_de_sequencia = charParaInt(buffer, 10, 19);
-				printf("%i\n", ACK);
 				//3º Se número de sequência igual a ACK, insere no arquivo e envia ACK
 				if (ACK == numero_de_sequencia){
 					x -= TAMANHO_CABECALHO;
@@ -269,4 +292,19 @@ int comparaSomas(const char* buffer){
 
 	if (soma_verificacao_local == soma_verificacao_pacote) return 1;
 	else return 0;
+}
+
+void myalarm(int seg){
+	alarm(seg);
+}
+
+void timer_handler(int signum){
+	printf("Error: Timeout\n");
+	timeout = 1;
+	close(socket_des);
+}
+
+void settimer(void){
+	signal(SIGALRM,timer_handler);
+	myalarm(TEMPO_TIMEOUT);
 }

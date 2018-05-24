@@ -33,14 +33,6 @@ int tp_sendto(int so, char* buff, int buff_len, so_addr* to_addr)
      * exercitar a funcionalidade do protocolo da camada   *
      * acima (o PJD).                                      *
      *******************************************************/
-   // Descomente o if else abaixo para testar ocorrência de pacotes corrompidos
-   /*if (i == 42){ // Valor de i representa a frequência que um pacote é corrompido. Nesse caso 1 vez a cada 42 envios
-      buff[32] = 'W';
-      i = 0;
-    }
-    else{
-      i++;
-    }*/
 
     // Descomente o if else abaixo para testar ocorrência de perda de pacotes
     /*if (j == 27){ // Valor de i representa a frequência que um pacote é corrompido. Nesse caso 1 vez a cada 27 envios
@@ -50,7 +42,7 @@ int tp_sendto(int so, char* buff, int buff_len, so_addr* to_addr)
     else
       j++;
       */
-    
+
     count = sendto(so, (void*)buff, buff_len, 0,
             (struct sockaddr*) to_addr, sizeof(struct sockaddr_in));
     fprintf(stderr,"tp_sendto returning (sent %d bytes)\n", count);
